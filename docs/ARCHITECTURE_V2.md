@@ -122,3 +122,28 @@ Gaya visual: **POLISHED STYLIZED SEMI-REALISTIC 3D**
 10. Fase 10 – UI, Audio dan Pengalaman Pengguna (Menu, HUD, audio, lokalisasi ID/EN).
 11. Fase 11 – Optimasi dan Web Demo (Profiling, export web, playtesting).
 12. Fase 12 – Monetisasi dan Rilis Play Store (AAB, Google Play Families, Store listing).
+
+---
+
+# BAGIAN 16 – STANDAR PEMROGRAMAN, DATA, DAN PENYIMPANAN
+
+1. **Bahasa Pemrograman Utama:**
+   GDScript menjadi bahasa utama pengembangan seluruh logika gameplay, controller, dan antarmuka.
+2. **Arsitektur Data-Driven (.tres / .res):**
+   Gunakan Godot Resource (`.tres` atau `.res`) untuk mendefinisikan data statis game: `VehicleData`, `CharacterData`, `LevelData`, `BossData`, `SkillData`, dan `PowerUpData`.
+3. **Penyimpanan Lokal Pemain:**
+   Gunakan `user://save_data.json` untuk menyimpan progres pemain secara offline pada perangkat lokal.
+4. **Pemisahan Referensi Aset & Save Data:**
+   Data unlock kendaraan dan karakter hanya menyimpan ID dan status kepemilikan (misalnya string ID atau integer). Dilarang menggandakan model 3D, mesh, tekstur, atau data audio ke dalam file save JSON.
+5. **Keandalan & Skema SaveManager:**
+   `SaveManager` wajib memiliki schema version, sistem validasi data saat pemuatan, nilai default fallback, serta mekanisme pemulihan (recovery) jika file penyimpanan lokal rusak atau tidak terbaca.
+6. **Tanpa Backend Eksternal pada Tahap Awal:**
+   Jangan menambahkan MySQL, Firebase, Supabase, atau backend eksternal pada tahap awal tanpa persetujuan resmi.
+7. **Kesiapan Cloud Save:**
+   Rancang struktur data agar dapat dikembangkan menjadi Cloud Save dan integrasi verifikasi pembelian melalui backend di masa depan.
+8. **Optimasi Ukuran Aplikasi:**
+   Optimalkan model 3D, tekstur, animasi, audio, dan aset lingkungan agar ukuran aplikasi terkendali dan ringan diunduh.
+9. **Pemisahan Aset Bawaan vs Progres Pemain:**
+   Bedakan secara tegas data aset bawaan game (read-only di `res://`) dengan data progres dinamis pemain (read-write di `user://`).
+10. **Integritas Hak Pembelian Berbayar:**
+    Saldo dan hak pembelian berbayar tidak boleh hanya mengandalkan JSON lokal sebagai sumber kebenaran.

@@ -1,0 +1,18 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/gameplay.gd" id="1_gameplay"]
+[ext_resource type="Script" path="res://scripts/gameplay/background.gd" id="2_bg"]
+[ext_resource type="Script" path="res://scripts/gameplay/road.gd" id="3_road"]
+[ext_resource type="Script" path="res://scripts/gameplay/decoration_manager.gd" id="4_deco"]
+
+[node name="Gameplay" type="Node2D"]
+script = ExtResource("1_gameplay")
+
+[node name="Background" type="Node2D" parent="."]
+script = ExtResource("2_bg")
+
+[node name="Road" type="Node2D" parent="."]
+script = ExtResource("3_road")
+
+[node name="DecorationManager" type="Node2D" parent="."]
+script = ExtResource("4_deco")

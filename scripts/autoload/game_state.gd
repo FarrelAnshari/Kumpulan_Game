@@ -71,6 +71,7 @@ func _setup_default_input_map() -> void:
 	_register_key_action("move_left", [KEY_LEFT, KEY_A])
 	_register_key_action("move_right", [KEY_RIGHT, KEY_D])
 	_register_key_action("jump", [KEY_UP, KEY_W, KEY_SPACE])
+	_register_key_action("slide", [KEY_DOWN, KEY_S])
 	_register_key_action("pause", [KEY_ESCAPE])
 
 

@@ -55,7 +55,7 @@ func _handle_interactive_camera_tuning(delta: float) -> void:
 		current_height = maxf(1.5, current_height - speed)
 		changed = true
 
-	# Jarak kamera (W/S) - tombol S digunakan dengan Shift agar tidak bentrok
+	# Jarak kamera (Panah Atas / Bawah)
 	if Input.is_key_pressed(KEY_UP):
 		current_dist = maxf(4.0, current_dist - speed)
 		changed = true
@@ -79,8 +79,22 @@ func _handle_interactive_camera_tuning(delta: float) -> void:
 		current_fov = minf(90.0, current_fov + 20.0 * delta)
 		changed = true
 
+	# Reset Kamera (khusus tombol Home, tidak menggunakan action jump/Space)
+	if Input.is_physical_key_pressed(KEY_HOME):
+		reset_camera()
+		changed = true
+
 	if changed:
 		_apply_camera_params()
+
+
+## Mengembalikan nilai kamera ke parameter default awal
+func reset_camera() -> void:
+	current_height = DEFAULT_HEIGHT
+	current_dist = DEFAULT_DISTANCE
+	current_tilt = DEFAULT_TILT_DEG
+	current_fov = DEFAULT_HFOV
+	_apply_camera_params()
 
 
 ## Membuat UI overlay diagnostik
@@ -137,10 +151,17 @@ func _build_ui_overlay() -> void:
 	pbox.add_child(lbl_camera_info)
 
 	var hint: Label = Label.new()
-	hint.text = "Kontrol Kalibrasi Kamera di Editor:\n• [Q/E]: Tinggi (Y)  • [Panah Atas/Bawah]: Jarak (Z)\n• [R/F]: Tilt Derajat  • [Z/C]: HFOV\n• [Spasi]: Reset ke Nilai Default"
+	hint.text = "Kontrol Kalibrasi Kamera di Editor:\n• [Q/E]: Tinggi (Y)  • [Panah Atas/Bawah]: Jarak (Z)\n• [R/F]: Tilt Derajat  • [Z/C]: HFOV\n• [Home]: Reset Kamera Default"
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", Color(0.8, 0.8, 0.85))
 	pbox.add_child(hint)
+
+	var btn_reset: Button = Button.new()
+	btn_reset.text = "🔄 Reset Kamera [Home]"
+	btn_reset.custom_minimum_size = Vector2(0, 34)
+	btn_reset.add_theme_font_size_override("font_size", 13)
+	btn_reset.pressed.connect(reset_camera)
+	pbox.add_child(btn_reset)
 
 	var spacer: Control = Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -178,10 +199,3 @@ func _update_ui_diagnostics() -> void:
 		+ " | Z=" + str(snappedf(current_dist, 0.1)) + "m"
 		+ " | Tilt=" + str(snappedf(current_tilt, 0.1)) + "°"
 	)
-
-	if Input.is_action_just_pressed("jump") or Input.is_key_pressed(KEY_SPACE):
-		current_height = DEFAULT_HEIGHT
-		current_dist = DEFAULT_DISTANCE
-		current_tilt = DEFAULT_TILT_DEG
-		current_fov = DEFAULT_HFOV
-		_apply_camera_params()

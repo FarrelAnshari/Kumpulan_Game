@@ -56,7 +56,7 @@ Bike/ (Root Proyek Godot 3D)
    - `[Panah Atas / Bawah]` : Atur jarak kamera ($Z$)
    - `[R / F]` : Atur kemiringan kamera (*pitch tilt*)
    - `[Z / C]` : Atur sudut pandang horizontal (HFOV)
-   - `[Spasi]` : Reset kamera ke parameter default awal.
+   - `[Home / Tombol UI]` : Reset kamera ke parameter default awal.
 
 ---
 

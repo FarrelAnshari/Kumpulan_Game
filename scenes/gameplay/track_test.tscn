@@ -1,0 +1,25 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/gameplay/track_test.gd" id="1_test"]
+[ext_resource type="Script" path="res://scripts/gameplay/track_manager.gd" id="2_tmgr"]
+[ext_resource type="Script" path="res://scripts/gameplay/track_test_rig.gd" id="3_rig"]
+[ext_resource type="Script" path="res://scripts/gameplay/chase_camera.gd" id="4_cam"]
+
+[node name="TrackTest" type="Node3D"]
+script = ExtResource("1_test")
+
+[node name="TrackManager" type="Node3D" parent="."]
+script = ExtResource("2_tmgr")
+
+[node name="TrackTestRig" type="Node3D" parent="."]
+script = ExtResource("3_rig")
+
+[node name="ChaseCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.961262, 0.275637, 0, -0.275637, 0.961262, 0, 5, 10)
+keep_aspect = 0
+fov = 65.0
+script = ExtResource("4_cam")
+target_path = NodePath("../TrackTestRig")
+follow_distance = 10.0
+follow_height = 5.0
+look_ahead_offset = 5.0

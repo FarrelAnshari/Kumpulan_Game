@@ -131,12 +131,9 @@ func _build_lane_markings() -> void:
 		border.position = Vector3(border_positions[i], LINE_HEIGHT_OFFSET, -segment_length * 0.5)
 		add_child(border)
 
-	# Garis pembagi antar lajur (2 garis antara 3 lajur)
+	# Garis pembagi antar lajur (antara lajur kiri-tengah dan tengah-kanan)
+	# Lajur di -3.5, 0, +3.5 → pembagi di -1.75 dan +1.75
 	var divider_positions: Array[float] = [-LANE_WIDTH * 0.5, LANE_WIDTH * 0.5]
-	# Koreksi: pembagi ada di x = -1.75 dan x = +1.75
-	divider_positions = [-LANE_WIDTH, LANE_WIDTH]
-	# Sebenarnya: lajur di -3.5, 0, +3.5 → pembagi di -1.75 dan +1.75
-	divider_positions = [-(LANE_WIDTH * 0.5), (LANE_WIDTH * 0.5)]
 	for i in range(divider_positions.size()):
 		var divider: MeshInstance3D = MeshInstance3D.new()
 		divider.name = "LaneDivider_" + str(i)
@@ -191,3 +188,22 @@ func get_global_exit_point() -> Vector3:
 ## Mendapatkan arah keluar dalam koordinat global
 func get_global_exit_forward() -> Vector3:
 	return global_basis * exit_forward
+
+
+## Mendapatkan Transform3D lokal pada jarak tertentu di sepanjang segmen ini.
+## Default implementasi berlaku untuk segmen lurus. Di-override oleh subclass.
+## dist: jarak dari entry_point sepanjang lintasan (0.0 s/d segment_length)
+## lane_offset: offset lateral dari garis tengah (-3.5m = kiri, 0.0m = tengah, +3.5m = kanan)
+func get_local_transform_at_distance(dist: float, lane_offset: float = 0.0) -> Transform3D:
+	var clamped_dist: float = clampf(dist, 0.0, segment_length)
+	var pos: Vector3 = Vector3(lane_offset, ROAD_THICKNESS * 0.5, -clamped_dist)
+	var forward: Vector3 = Vector3(0.0, 0.0, -1.0)
+	var up: Vector3 = Vector3.UP
+	var basis: Basis = Basis.looking_at(forward, up)
+	return Transform3D(basis, pos)
+
+
+## Mendapatkan Transform3D dunia (global) pada jarak tertentu di sepanjang segmen ini
+func get_global_transform_at_distance(dist: float, lane_offset: float = 0.0) -> Transform3D:
+	var local_tf: Transform3D = get_local_transform_at_distance(dist, lane_offset)
+	return global_transform * local_tf

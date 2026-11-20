@@ -70,9 +70,8 @@ func _calculate_desired_transform() -> void:
 	desired_position = target_pos - target_forward * follow_distance
 	desired_position.y = target_pos.y + follow_height
 
-	# Titik pandang: sedikit di depan target
-	desired_look_at = target_pos + target_forward * look_ahead_offset
-	desired_look_at.y = target_pos.y
+	# Titik pandang: di depan target mengikuti arah hadap dan elevasi lintasan
+	desired_look_at = target_pos + target_forward * look_ahead_offset + Vector3.UP * 1.0
 
 
 ## Memperbarui posisi dan rotasi kamera dengan interpolasi halus

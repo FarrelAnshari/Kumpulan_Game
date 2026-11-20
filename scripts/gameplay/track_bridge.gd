@@ -43,24 +43,16 @@ func _build_segment_geometry() -> void:
 	railing_mat.metallic = 0.5
 	railing_mat.roughness = 0.3
 
-	# Jalur naik
+	# 1. Jalur naik kontinu tunggal
 	var up_slope: float = atan2(bridge_height, approach_length)
-	var up_step: float = approach_length / float(APPROACH_RESOLUTION)
-	var up_h_step: float = bridge_height / float(APPROACH_RESOLUTION)
-	for i in range(APPROACH_RESOLUTION):
-		var z: float = -up_step * (float(i) + 0.5)
-		var y: float = up_h_step * (float(i) + 0.5)
-		_add_road_piece("BridgeUp_" + str(i), asphalt_mat, shoulder_mat,
-			Vector3(0.0, y, z), up_slope, up_step * 1.02)
+	var up_len: float = sqrt(approach_length * approach_length + bridge_height * bridge_height)
+	var up_pos: Vector3 = Vector3(0.0, bridge_height * 0.5, -approach_length * 0.5)
+	_add_road_piece("BridgeUp", asphalt_mat, shoulder_mat, up_pos, up_slope, up_len)
 
-	# Bentangan jembatan datar
+	# 2. Bentangan jembatan datar kontinu tunggal
 	var span_z_start: float = -approach_length
-	var span_steps: int = 4
-	var span_step_len: float = bridge_span_length / float(span_steps)
-	for i in range(span_steps):
-		var z: float = span_z_start - span_step_len * (float(i) + 0.5)
-		_add_road_piece("BridgeSpan_" + str(i), bridge_mat, shoulder_mat,
-			Vector3(0.0, bridge_height, z), 0.0, span_step_len * 1.02)
+	var span_pos: Vector3 = Vector3(0.0, bridge_height, span_z_start - bridge_span_length * 0.5)
+	_add_road_piece("BridgeSpan", bridge_mat, shoulder_mat, span_pos, 0.0, bridge_span_length)
 
 	# Pagar pengaman jembatan (kiri dan kanan)
 	for side in [-1.0, 1.0]:
@@ -77,14 +69,10 @@ func _build_segment_geometry() -> void:
 		)
 		add_child(railing)
 
-	# Jalur turun
-	var down_z_start: float = -(approach_length + bridge_span_length)
+	# 3. Jalur turun kontinu tunggal
 	var down_slope: float = atan2(-bridge_height, approach_length)
-	for i in range(APPROACH_RESOLUTION):
-		var z: float = down_z_start - up_step * (float(i) + 0.5)
-		var y: float = bridge_height - up_h_step * (float(i) + 0.5)
-		_add_road_piece("BridgeDown_" + str(i), asphalt_mat, shoulder_mat,
-			Vector3(0.0, y, z), down_slope, up_step * 1.02)
+	var down_pos: Vector3 = Vector3(0.0, bridge_height * 0.5, -(approach_length + bridge_span_length + approach_length * 0.5))
+	_add_road_piece("BridgeDown", asphalt_mat, shoulder_mat, down_pos, down_slope, up_len)
 
 	# Pilar penyangga jembatan
 	_build_support_pillars(span_z_start, bridge_mat)
@@ -133,6 +121,25 @@ func _add_road_piece(piece_name: String, road_mat: StandardMaterial3D,
 		shoulder.rotation.x = slope_angle
 		add_child(shoulder)
 
+	# Marka lajur
+	var line_mat: StandardMaterial3D = StandardMaterial3D.new()
+	line_mat.albedo_color = Color(0.95, 0.95, 0.95, 1.0)
+	line_mat.roughness = 0.4
+	var line_x_positions: Array[float] = [
+		-ROAD_WIDTH * 0.5, -LANE_WIDTH * 0.5,
+		LANE_WIDTH * 0.5, ROAD_WIDTH * 0.5,
+	]
+	for lx in range(line_x_positions.size()):
+		var line_piece: MeshInstance3D = MeshInstance3D.new()
+		line_piece.name = piece_name + "_Line_" + str(lx)
+		var lbox: BoxMesh = BoxMesh.new()
+		lbox.size = Vector3(LINE_WIDTH, ROAD_THICKNESS + LINE_HEIGHT_OFFSET, piece_length)
+		lbox.material = line_mat
+		line_piece.mesh = lbox
+		line_piece.position = pos + Vector3(line_x_positions[lx], LINE_HEIGHT_OFFSET, 0.0)
+		line_piece.rotation.x = slope_angle
+		add_child(line_piece)
+
 
 func _build_collision() -> void:
 	collision_body = StaticBody3D.new()
@@ -140,32 +147,19 @@ func _build_collision() -> void:
 	add_child(collision_body)
 
 	var up_slope: float = atan2(bridge_height, approach_length)
-	var up_step: float = approach_length / float(APPROACH_RESOLUTION)
-	var up_h_step: float = bridge_height / float(APPROACH_RESOLUTION)
+	var up_len: float = sqrt(approach_length * approach_length + bridge_height * bridge_height)
 
-	# Collision jalur naik
-	for i in range(APPROACH_RESOLUTION):
-		_add_col("BridgeUpCol_" + str(i),
-			Vector3(0.0, up_h_step * (float(i) + 0.5), -up_step * (float(i) + 0.5)),
-			up_slope, up_step * 1.02)
+	# 1. Collision jalur naik
+	_add_col("BridgeUpCol", Vector3(0.0, bridge_height * 0.5, -approach_length * 0.5), up_slope, up_len)
 
-	# Collision bentangan
+	# 2. Collision bentangan datar
 	var span_z_start: float = -approach_length
-	var span_steps: int = 4
-	var span_step_len: float = bridge_span_length / float(span_steps)
-	for i in range(span_steps):
-		_add_col("BridgeSpanCol_" + str(i),
-			Vector3(0.0, bridge_height, span_z_start - span_step_len * (float(i) + 0.5)),
-			0.0, span_step_len * 1.02)
+	_add_col("BridgeSpanCol", Vector3(0.0, bridge_height, span_z_start - bridge_span_length * 0.5), 0.0, bridge_span_length)
 
-	# Collision jalur turun
-	var down_z_start: float = -(approach_length + bridge_span_length)
+	# 3. Collision jalur turun
 	var down_slope: float = atan2(-bridge_height, approach_length)
-	for i in range(APPROACH_RESOLUTION):
-		_add_col("BridgeDownCol_" + str(i),
-			Vector3(0.0, bridge_height - up_h_step * (float(i) + 0.5),
-				down_z_start - up_step * (float(i) + 0.5)),
-			down_slope, up_step * 1.02)
+	var down_pos: Vector3 = Vector3(0.0, bridge_height * 0.5, -(approach_length + bridge_span_length + approach_length * 0.5))
+	_add_col("BridgeDownCol", down_pos, down_slope, up_len)
 
 
 func _add_col(col_name: String, pos: Vector3,
@@ -178,3 +172,35 @@ func _add_col(col_name: String, pos: Vector3,
 	shape_node.position = pos
 	shape_node.rotation.x = slope_angle
 	collision_body.add_child(shape_node)
+
+
+## Menghitung posisi dan orientasi lokal di sepanjang jembatan (naik, bentang datar, turun)
+func get_local_transform_at_distance(dist: float, lane_offset: float = 0.0) -> Transform3D:
+	var clamped_dist: float = clampf(dist, 0.0, segment_length)
+	var pos: Vector3 = Vector3.ZERO
+	var forward: Vector3 = Vector3(0.0, 0.0, -1.0)
+	var up: Vector3 = Vector3.UP
+
+	if clamped_dist < approach_length:
+		var up_slope: float = atan2(bridge_height, approach_length)
+		var t: float = clamped_dist / maxf(0.001, approach_length)
+		var y: float = bridge_height * t + ROAD_THICKNESS * 0.5
+		pos = Vector3(lane_offset, y, -clamped_dist)
+		forward = Vector3(0.0, sin(up_slope), -cos(up_slope)).normalized()
+		up = Vector3(0.0, cos(up_slope), sin(up_slope)).normalized()
+	elif clamped_dist < approach_length + bridge_span_length:
+		var y: float = bridge_height + ROAD_THICKNESS * 0.5
+		pos = Vector3(lane_offset, y, -clamped_dist)
+		forward = Vector3(0.0, 0.0, -1.0)
+		up = Vector3.UP
+	else:
+		var down_slope: float = atan2(-bridge_height, approach_length)
+		var s_down: float = clamped_dist - (approach_length + bridge_span_length)
+		var t: float = s_down / maxf(0.001, approach_length)
+		var y: float = bridge_height * (1.0 - t) + ROAD_THICKNESS * 0.5
+		pos = Vector3(lane_offset, y, -clamped_dist)
+		forward = Vector3(0.0, sin(down_slope), -cos(down_slope)).normalized()
+		up = Vector3(0.0, cos(down_slope), sin(down_slope)).normalized()
+
+	var basis: Basis = Basis.looking_at(forward, up)
+	return Transform3D(basis, pos)

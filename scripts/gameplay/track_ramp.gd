@@ -40,36 +40,21 @@ func _build_segment_geometry() -> void:
 	shoulder_mat.albedo_color = Color(0.45, 0.38, 0.35, 1.0)
 	shoulder_mat.roughness = 0.8
 
-	# Bagian naik (upward slope)
+	# 1. Bagian naik kontinu tunggal (upward slope)
 	var up_slope: float = atan2(ramp_height, ramp_up_length)
-	var up_step_len: float = ramp_up_length / float(RAMP_RESOLUTION)
-	var up_step_h: float = ramp_height / float(RAMP_RESOLUTION)
+	var up_len: float = sqrt(ramp_up_length * ramp_up_length + ramp_height * ramp_height)
+	var up_pos: Vector3 = Vector3(0.0, ramp_height * 0.5, -ramp_up_length * 0.5)
+	_add_road_piece("RampUp", ramp_mat, shoulder_mat, up_pos, up_slope, up_len)
 
-	for i in range(RAMP_RESOLUTION):
-		var z_pos: float = -up_step_len * (float(i) + 0.5)
-		var y_pos: float = up_step_h * (float(i) + 0.5)
-		_add_road_piece("RampUp_" + str(i), ramp_mat, shoulder_mat,
-			Vector3(0.0, y_pos, z_pos), up_slope, up_step_len * 1.02)
+	# 2. Bagian datar di puncak kontinu tunggal (flat peak)
+	var flat_pos: Vector3 = Vector3(0.0, ramp_height, -(ramp_up_length + ramp_flat_length * 0.5))
+	_add_road_piece("RampFlat", asphalt_mat, shoulder_mat, flat_pos, 0.0, ramp_flat_length)
 
-	# Bagian datar di puncak
-	var flat_z_start: float = -ramp_up_length
-	var flat_step: float = ramp_flat_length / 2.0
-	for i in range(2):
-		var z_pos: float = flat_z_start - flat_step * (float(i) + 0.5)
-		_add_road_piece("RampFlat_" + str(i), asphalt_mat, shoulder_mat,
-			Vector3(0.0, ramp_height, z_pos), 0.0, flat_step * 1.02)
-
-	# Bagian turun (downward slope)
-	var down_z_start: float = -(ramp_up_length + ramp_flat_length)
+	# 3. Bagian turun kontinu tunggal (downward slope)
 	var down_slope: float = atan2(-ramp_height, ramp_down_length)
-	var down_step_len: float = ramp_down_length / float(RAMP_RESOLUTION)
-	var down_step_h: float = ramp_height / float(RAMP_RESOLUTION)
-
-	for i in range(RAMP_RESOLUTION):
-		var z_pos: float = down_z_start - down_step_len * (float(i) + 0.5)
-		var y_pos: float = ramp_height - down_step_h * (float(i) + 0.5)
-		_add_road_piece("RampDown_" + str(i), ramp_mat, shoulder_mat,
-			Vector3(0.0, y_pos, z_pos), down_slope, down_step_len * 1.02)
+	var down_len: float = sqrt(ramp_down_length * ramp_down_length + ramp_height * ramp_height)
+	var down_pos: Vector3 = Vector3(0.0, ramp_height * 0.5, -(ramp_up_length + ramp_flat_length + ramp_down_length * 0.5))
+	_add_road_piece("RampDown", ramp_mat, shoulder_mat, down_pos, down_slope, down_len)
 
 
 func _add_road_piece(piece_name: String, road_mat: StandardMaterial3D,
@@ -100,39 +85,46 @@ func _add_road_piece(piece_name: String, road_mat: StandardMaterial3D,
 		shoulder.rotation.x = slope_angle
 		add_child(shoulder)
 
+	# Marka lajur
+	var line_mat: StandardMaterial3D = StandardMaterial3D.new()
+	line_mat.albedo_color = Color(0.95, 0.95, 0.95, 1.0)
+	line_mat.roughness = 0.4
+	var line_x_positions: Array[float] = [
+		-ROAD_WIDTH * 0.5, -LANE_WIDTH * 0.5,
+		LANE_WIDTH * 0.5, ROAD_WIDTH * 0.5,
+	]
+	for lx in range(line_x_positions.size()):
+		var line_piece: MeshInstance3D = MeshInstance3D.new()
+		line_piece.name = piece_name + "_Line_" + str(lx)
+		var lbox: BoxMesh = BoxMesh.new()
+		lbox.size = Vector3(LINE_WIDTH, ROAD_THICKNESS + LINE_HEIGHT_OFFSET, piece_length)
+		lbox.material = line_mat
+		line_piece.mesh = lbox
+		line_piece.position = pos + Vector3(line_x_positions[lx], LINE_HEIGHT_OFFSET, 0.0)
+		line_piece.rotation.x = slope_angle
+		add_child(line_piece)
+
 
 func _build_collision() -> void:
 	collision_body = StaticBody3D.new()
 	collision_body.name = "RoadCollision"
 	add_child(collision_body)
 
-	# Collision bagian naik
+	# 1. Collision bagian naik
 	var up_slope: float = atan2(ramp_height, ramp_up_length)
-	var up_step_len: float = ramp_up_length / float(RAMP_RESOLUTION)
-	var up_step_h: float = ramp_height / float(RAMP_RESOLUTION)
-	for i in range(RAMP_RESOLUTION):
-		_add_collision_piece("RampUpCol_" + str(i),
-			Vector3(0.0, up_step_h * (float(i) + 0.5), -up_step_len * (float(i) + 0.5)),
-			up_slope, up_step_len * 1.02)
+	var up_len: float = sqrt(ramp_up_length * ramp_up_length + ramp_height * ramp_height)
+	var up_pos: Vector3 = Vector3(0.0, ramp_height * 0.5, -ramp_up_length * 0.5)
+	_add_collision_piece("RampUpCol", up_pos, up_slope, up_len)
 
-	# Collision bagian datar
-	var flat_z_start: float = -ramp_up_length
-	var flat_step: float = ramp_flat_length / 2.0
-	for i in range(2):
-		_add_collision_piece("RampFlatCol_" + str(i),
-			Vector3(0.0, ramp_height, flat_z_start - flat_step * (float(i) + 0.5)),
-			0.0, flat_step * 1.02)
+	# 2. Collision bagian datar puncak
+	var flat_pos: Vector3 = Vector3(0.0, ramp_height, -(ramp_up_length + ramp_flat_length * 0.5))
+	_add_collision_piece("RampFlatCol", flat_pos, 0.0, ramp_flat_length)
 
-	# Collision bagian turun
-	var down_z_start: float = -(ramp_up_length + ramp_flat_length)
+	# 3. Collision bagian turun
 	var down_slope: float = atan2(-ramp_height, ramp_down_length)
-	var down_step_len: float = ramp_down_length / float(RAMP_RESOLUTION)
-	var down_step_h: float = ramp_height / float(RAMP_RESOLUTION)
-	for i in range(RAMP_RESOLUTION):
-		_add_collision_piece("RampDownCol_" + str(i),
-			Vector3(0.0, ramp_height - down_step_h * (float(i) + 0.5),
-				down_z_start - down_step_len * (float(i) + 0.5)),
-			down_slope, down_step_len * 1.02)
+	var down_len: float = sqrt(ramp_down_length * ramp_down_length + ramp_height * ramp_height)
+	var down_pos: Vector3 = Vector3(0.0, ramp_height * 0.5, -(ramp_up_length + ramp_flat_length + ramp_down_length * 0.5))
+	_add_collision_piece("RampDownCol", down_pos, down_slope, down_len)
 
 
 func _add_collision_piece(piece_name: String, pos: Vector3,
@@ -145,3 +137,35 @@ func _add_collision_piece(piece_name: String, pos: Vector3,
 	shape_node.position = pos
 	shape_node.rotation.x = slope_angle
 	collision_body.add_child(shape_node)
+
+
+## Menghitung posisi dan orientasi lokal di sepanjang ramp (naik, datar, turun)
+func get_local_transform_at_distance(dist: float, lane_offset: float = 0.0) -> Transform3D:
+	var clamped_dist: float = clampf(dist, 0.0, segment_length)
+	var pos: Vector3 = Vector3.ZERO
+	var forward: Vector3 = Vector3(0.0, 0.0, -1.0)
+	var up: Vector3 = Vector3.UP
+
+	if clamped_dist < ramp_up_length:
+		var up_slope: float = atan2(ramp_height, ramp_up_length)
+		var t: float = clamped_dist / maxf(0.001, ramp_up_length)
+		var y: float = ramp_height * t + ROAD_THICKNESS * 0.5
+		pos = Vector3(lane_offset, y, -clamped_dist)
+		forward = Vector3(0.0, sin(up_slope), -cos(up_slope)).normalized()
+		up = Vector3(0.0, cos(up_slope), sin(up_slope)).normalized()
+	elif clamped_dist < ramp_up_length + ramp_flat_length:
+		var y: float = ramp_height + ROAD_THICKNESS * 0.5
+		pos = Vector3(lane_offset, y, -clamped_dist)
+		forward = Vector3(0.0, 0.0, -1.0)
+		up = Vector3.UP
+	else:
+		var down_slope: float = atan2(-ramp_height, ramp_down_length)
+		var s_down: float = clamped_dist - (ramp_up_length + ramp_flat_length)
+		var t: float = s_down / maxf(0.001, ramp_down_length)
+		var y: float = ramp_height * (1.0 - t) + ROAD_THICKNESS * 0.5
+		pos = Vector3(lane_offset, y, -clamped_dist)
+		forward = Vector3(0.0, sin(down_slope), -cos(down_slope)).normalized()
+		up = Vector3(0.0, cos(down_slope), sin(down_slope)).normalized()
+
+	var basis: Basis = Basis.looking_at(forward, up)
+	return Transform3D(basis, pos)

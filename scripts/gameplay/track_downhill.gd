@@ -35,51 +35,49 @@ func _build_segment_geometry() -> void:
 	line_mat.albedo_color = Color(0.95, 0.95, 0.95, 1.0)
 	line_mat.roughness = 0.4
 
-	var step_len: float = segment_length / float(SLOPE_RESOLUTION)
-	var step_height: float = elevation_drop / float(SLOPE_RESOLUTION)
+	# Turunan lurus adalah satu bidang miring kontinu dari entry ke exit
+	var slope_len: float = sqrt(segment_length * segment_length + elevation_drop * elevation_drop)
 	var slope_angle: float = atan2(-elevation_drop, segment_length)
+	var mid_pos: Vector3 = Vector3(0.0, -elevation_drop * 0.5, -segment_length * 0.5)
 
-	for i in range(SLOPE_RESOLUTION):
-		var z_pos: float = -step_len * (float(i) + 0.5)
-		var y_pos: float = -step_height * (float(i) + 0.5)
+	# 1. Aspal turunan kontinu tunggal (tanpa sambungan internal)
+	var road_piece: MeshInstance3D = MeshInstance3D.new()
+	road_piece.name = "DownhillRoadSurface"
+	var box: BoxMesh = BoxMesh.new()
+	box.size = Vector3(ROAD_WIDTH, ROAD_THICKNESS, slope_len)
+	box.material = asphalt_mat
+	road_piece.mesh = box
+	road_piece.position = mid_pos
+	road_piece.rotation.x = slope_angle
+	add_child(road_piece)
 
-		var road_piece: MeshInstance3D = MeshInstance3D.new()
-		road_piece.name = "DownhillRoad_" + str(i)
-		var box: BoxMesh = BoxMesh.new()
-		box.size = Vector3(ROAD_WIDTH, ROAD_THICKNESS, step_len * 1.02)
-		box.material = asphalt_mat
-		road_piece.mesh = box
-		road_piece.position = Vector3(0.0, y_pos, z_pos)
-		road_piece.rotation.x = slope_angle
-		add_child(road_piece)
+	# 2. Bahu kiri dan kanan kontinu tunggal
+	for side in [-1.0, 1.0]:
+		var shoulder: MeshInstance3D = MeshInstance3D.new()
+		shoulder.name = "DownhillShoulder_" + ("L" if side < 0 else "R")
+		var sbox: BoxMesh = BoxMesh.new()
+		sbox.size = Vector3(SHOULDER_WIDTH, ROAD_THICKNESS * 0.85, slope_len)
+		sbox.material = shoulder_mat
+		shoulder.mesh = sbox
+		shoulder.position = mid_pos + Vector3(side * (ROAD_WIDTH * 0.5 + SHOULDER_WIDTH * 0.5), 0.0, 0.0)
+		shoulder.rotation.x = slope_angle
+		add_child(shoulder)
 
-		for side in [-1.0, 1.0]:
-			var shoulder: MeshInstance3D = MeshInstance3D.new()
-			shoulder.name = "DownhillShoulder_" + str(i) + "_" + ("L" if side < 0 else "R")
-			var sbox: BoxMesh = BoxMesh.new()
-			sbox.size = Vector3(SHOULDER_WIDTH, ROAD_THICKNESS * 0.85, step_len * 1.02)
-			sbox.material = shoulder_mat
-			shoulder.mesh = sbox
-			shoulder.position = Vector3(
-				side * (ROAD_WIDTH * 0.5 + SHOULDER_WIDTH * 0.5), y_pos, z_pos
-			)
-			shoulder.rotation.x = slope_angle
-			add_child(shoulder)
-
-		var line_x_positions: Array[float] = [
-			-ROAD_WIDTH * 0.5, -LANE_WIDTH * 0.5,
-			LANE_WIDTH * 0.5, ROAD_WIDTH * 0.5,
-		]
-		for lx in range(line_x_positions.size()):
-			var line_piece: MeshInstance3D = MeshInstance3D.new()
-			line_piece.name = "DownhillLine_" + str(i) + "_" + str(lx)
-			var lbox: BoxMesh = BoxMesh.new()
-			lbox.size = Vector3(LINE_WIDTH, ROAD_THICKNESS + LINE_HEIGHT_OFFSET, step_len * 1.02)
-			lbox.material = line_mat
-			line_piece.mesh = lbox
-			line_piece.position = Vector3(line_x_positions[lx], y_pos + LINE_HEIGHT_OFFSET, z_pos)
-			line_piece.rotation.x = slope_angle
-			add_child(line_piece)
+	# 3. Garis marka 3 lajur kontinu tunggal
+	var line_x_positions: Array[float] = [
+		-ROAD_WIDTH * 0.5, -LANE_WIDTH * 0.5,
+		LANE_WIDTH * 0.5, ROAD_WIDTH * 0.5,
+	]
+	for lx in range(line_x_positions.size()):
+		var line_piece: MeshInstance3D = MeshInstance3D.new()
+		line_piece.name = "DownhillLine_" + str(lx)
+		var lbox: BoxMesh = BoxMesh.new()
+		lbox.size = Vector3(LINE_WIDTH, ROAD_THICKNESS + LINE_HEIGHT_OFFSET, slope_len)
+		lbox.material = line_mat
+		line_piece.mesh = lbox
+		line_piece.position = mid_pos + Vector3(line_x_positions[lx], LINE_HEIGHT_OFFSET, 0.0)
+		line_piece.rotation.x = slope_angle
+		add_child(line_piece)
 
 
 func _build_collision() -> void:
@@ -87,19 +85,27 @@ func _build_collision() -> void:
 	collision_body.name = "RoadCollision"
 	add_child(collision_body)
 
-	var step_len: float = segment_length / float(SLOPE_RESOLUTION)
-	var step_height: float = elevation_drop / float(SLOPE_RESOLUTION)
+	var slope_len: float = sqrt(segment_length * segment_length + elevation_drop * elevation_drop)
 	var slope_angle: float = atan2(-elevation_drop, segment_length)
+	var mid_pos: Vector3 = Vector3(0.0, -elevation_drop * 0.5, -segment_length * 0.5)
 
-	for i in range(SLOPE_RESOLUTION):
-		var z_pos: float = -step_len * (float(i) + 0.5)
-		var y_pos: float = -step_height * (float(i) + 0.5)
+	var shape_node: CollisionShape3D = CollisionShape3D.new()
+	shape_node.name = "DownhillCollisionShape"
+	var shape: BoxShape3D = BoxShape3D.new()
+	shape.size = Vector3(TOTAL_WIDTH, ROAD_THICKNESS, slope_len)
+	shape_node.shape = shape
+	shape_node.position = mid_pos
+	shape_node.rotation.x = slope_angle
+	collision_body.add_child(shape_node)
 
-		var shape_node: CollisionShape3D = CollisionShape3D.new()
-		shape_node.name = "DownhillCollision_" + str(i)
-		var shape: BoxShape3D = BoxShape3D.new()
-		shape.size = Vector3(TOTAL_WIDTH, ROAD_THICKNESS, step_len * 1.02)
-		shape_node.shape = shape
-		shape_node.position = Vector3(0.0, y_pos, z_pos)
-		shape_node.rotation.x = slope_angle
-		collision_body.add_child(shape_node)
+
+## Menghitung posisi dan orientasi lokal di sepanjang turunan
+func get_local_transform_at_distance(dist: float, lane_offset: float = 0.0) -> Transform3D:
+	var clamped_dist: float = clampf(dist, 0.0, segment_length)
+	var t: float = clamped_dist / maxf(0.001, segment_length)
+	var slope_angle: float = atan2(-elevation_drop, segment_length)
+	var pos: Vector3 = Vector3(lane_offset, -elevation_drop * t + ROAD_THICKNESS * 0.5, -clamped_dist)
+	var forward: Vector3 = Vector3(0.0, sin(slope_angle), -cos(slope_angle)).normalized()
+	var up: Vector3 = Vector3(0.0, cos(slope_angle), sin(slope_angle)).normalized()
+	var basis: Basis = Basis.looking_at(forward, up)
+	return Transform3D(basis, pos)

@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="SepedaPetualang"
-run/main_scene="res://scenes/bootstrap_3d.tscn"
+run/main_scene="res://scenes/gameplay/track_test.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -23,13 +23,13 @@ AudioManager="*res://scripts/autoload/audio_manager.gd"
 
 [display]
 
-window/size/viewport_width=720
-window/size/viewport_height=1280
-window/size/window_width_override=405
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
 window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-window/handheld/orientation=1
+window/handheld/orientation=0
 
 [input_devices]
 

@@ -1,14 +1,16 @@
 extends Node3D
 
-# TrackTest: Scene pengujian sistem lintasan modular Fase 2.
-# Menampilkan berbagai jenis segmen yang terhubung, test rig yang bergerak otomatis,
-# chase camera, dan HUD diagnostik.
+# TrackTest: Scene pengujian sistem lintasan modular dan pergerakan pemain.
+# Fase 2: Sistem lintasan modular, TrackTestRig, diagnostik koneksi.
+# Fase 3: Integrasi PlayerController (Sepeda Motor + Ponco Rider), Auto-Forward, dan Smooth Lateral Movement.
 
 @onready var track_manager: TrackManager = $TrackManager
 @onready var test_rig: TrackTestRig = $TrackTestRig
+@onready var player: PlayerController = $PlayerController
 @onready var chase_camera: ChaseCamera = $ChaseCamera
 
 # Referensi UI diagnostik
+var lbl_title: Label
 var lbl_track_info: Label
 var lbl_camera_info: Label
 var lbl_rig_info: Label
@@ -16,6 +18,9 @@ var lbl_orientation_info: Label
 var lbl_segment_detail: Label
 var lbl_connection_status: Label
 var lbl_input_status: Label
+
+# Mode aktor aktif (default: PlayerController untuk Fase 3)
+var use_player: bool = true
 
 # Referensi kamera alternatif
 var top_camera: Camera3D
@@ -27,8 +32,13 @@ var last_action_text: String = "Belum ada input"
 var action_indicator_timer: float = 0.0
 var frame_count: int = 0
 var screenshot_cooldown: float = 0.0
+var has_captured_finish: bool = false
+var has_captured_apex: bool = false
+var has_captured_landing: bool = false
+var has_captured_slide_neutral: bool = false
+var has_captured_slide_skid: bool = false
 
-# Data urutan segmen untuk pengujian
+# Data urutan segmen untuk pengujian (13 segmen modular Fase 2)
 var test_sequence: Array[Dictionary] = [
 	{"type": "straight", "length": 30.0},
 	{"type": "curve_left", "angle": 30.0, "radius": 40.0},
@@ -52,6 +62,7 @@ var touch_controller: TouchController
 func _ready() -> void:
 	_build_environment()
 	_build_track()
+	_setup_player()
 	_setup_test_rig()
 	_setup_camera()
 	_build_ui_overlay()
@@ -65,25 +76,209 @@ func _process(delta: float) -> void:
 	_update_diagnostics()
 
 
-## Menangani pengambilan screenshot otomatis saat audit dijalankan
+## Memasang PlayerController pada lintasan dan mereset ke posisi awal
+func _setup_player() -> void:
+	if player:
+		player.track_manager = track_manager
+		player.reset_to_start()
+		print("🏍️ PlayerController berhasil diintegrasikan dengan TrackManager.")
+
+
+## Menyiapkan test rig diagnostik (disembunyikan secara visual jika Player aktif)
+func _setup_test_rig() -> void:
+	if test_rig:
+		test_rig.track_manager = track_manager
+		test_rig.total_distance = 0.0
+		test_rig.visible = !use_player
+		test_rig.set_process(!use_player)
+
+
+## Menyiapkan chase camera dan top-view camera
+func _setup_camera() -> void:
+	if use_player and player:
+		chase_camera.set_target(player)
+	elif test_rig:
+		chase_camera.set_target(test_rig)
+	chase_camera._snap_to_target()
+
+	# Kamera pandangan atas (Top-View / Bird's Eye) untuk audit geometri lintasan
+	top_camera = Camera3D.new()
+	top_camera.name = "TopCamera"
+	top_camera.current = false
+	top_camera.fov = 75.0
+	top_camera.position = Vector3(-20.0, 175.0, -135.0)
+	top_camera.rotation_degrees = Vector3(-89.9, 0.0, 0.0)
+	add_child(top_camera)
+
+
+## Berganti aktor aktif antara PlayerController dan TrackTestRig (Fitur Diagnostik F2/F3)
+func _toggle_active_actor() -> void:
+	use_player = !use_player
+	if use_player and player:
+		test_rig.visible = false
+		test_rig.set_process(false)
+		player.visible = true
+		player.set_physics_process(true)
+		chase_camera.set_target(player)
+		_register_action("🔄 Aktor Aktif: PlayerController (Motor & Ponco)", Color(0.4, 1.0, 0.6))
+	elif test_rig:
+		player.visible = false
+		player.set_physics_process(false)
+		test_rig.visible = true
+		test_rig.set_process(true)
+		chase_camera.set_target(test_rig)
+		_register_action("🔄 Aktor Aktif: TrackTestRig (Kotak Oranye)", Color(1.0, 0.6, 0.2))
+
+
+## Menangani pengambilan screenshot otomatis saat pengujian/audit dijalankan
 func _handle_auto_screenshots() -> void:
-	var should_capture: bool = false
+	var mode_audit: bool = false
+	var mode_step2: bool = false
+	var mode_step3: bool = false
+	var mode_step4: bool = false
+
 	for a in OS.get_cmdline_args():
 		if a == "--capture-audit":
-			should_capture = true
-			break
+			mode_audit = true
+		elif a == "--capture-step2":
+			mode_step2 = true
+		elif a == "--capture-step3":
+			mode_step3 = true
+		elif a == "--capture-step4":
+			mode_step4 = true
+		elif a == "--fast-test" and player:
+			player.forward_speed = 45.0
 
-	if not should_capture:
-		return
+	if mode_audit:
+		if frame_count == 10:
+			_save_viewport_screenshot("screenshot_game_view.png")
+			top_camera.current = true
+		elif frame_count == 18:
+			_save_viewport_screenshot("screenshot_top_view.png")
+			top_camera.current = false
+		elif frame_count == 210:
+			_save_viewport_screenshot("screenshot_curve_view.png")
+	elif mode_step2:
+		if frame_count == 10:
+			_save_viewport_screenshot("step2_spawn.png")
+		elif frame_count == 60:
+			_save_viewport_screenshot("step2_curve.png")
+		elif frame_count == 180:
+			_save_viewport_screenshot("step2_bridge.png")
+		if player and player.is_track_completed and not has_captured_finish:
+			has_captured_finish = true
+			_save_viewport_screenshot("step2_finish.png")
+		if has_captured_finish and frame_count > 380:
+			get_tree().quit()
+	elif mode_step3:
+		# Skenario pengujian terprogram untuk Step 3
+		if frame_count == 10:
+			_save_viewport_screenshot("step3_neutral.png")
+		# Simulasi belok kiri dan miring kiri
+		elif frame_count == 15:
+			Input.action_press("move_left")
+		elif frame_count == 40:
+			_save_viewport_screenshot("step3_steer_left.png")
+		# Lepas belok kiri, biarkan berada di posisi antara (intermediate)
+		elif frame_count == 55:
+			Input.action_release("move_left")
+		elif frame_count == 70:
+			_save_viewport_screenshot("step3_intermediate.png")
+		# Simulasi belok kanan menuju kurva
+		elif frame_count == 80:
+			Input.action_press("move_right")
+		elif frame_count == 120:
+			_save_viewport_screenshot("step3_steer_right.png")
+		# Tetap tekan kanan sampai menabrak batas jalan (Boundary Clamping)
+		elif frame_count == 170:
+			_save_viewport_screenshot("step3_boundary.png")
+		# Kembalikan ke tengah untuk pengujian ramp / bridge
+		elif frame_count == 180:
+			Input.action_release("move_right")
+			Input.action_press("move_left")
+		elif frame_count == 235:
+			Input.action_release("move_left")
+		elif frame_count == 260:
+			_save_viewport_screenshot("step3_ramp_lateral.png")
 
-	if frame_count == 10:
-		_save_viewport_screenshot("screenshot_game_view.png")
-		top_camera.current = true
-	elif frame_count == 18:
-		_save_viewport_screenshot("screenshot_top_view.png")
-		top_camera.current = false
-	elif frame_count == 210:
-		_save_viewport_screenshot("screenshot_curve_view.png")
+		if player and player.is_track_completed and not has_captured_finish:
+			has_captured_finish = true
+			_save_viewport_screenshot("step3_finish.png")
+			print("🏁 Step 3: Player selesai menempuh seluruh lintasan dan berhenti aman.")
+
+		if has_captured_finish and frame_count > 420:
+			print("📸 Audit Step 3 selesai penuh. Menutup.")
+			get_tree().quit()
+
+	elif mode_step4:
+		# Skenario pengujian berbasis kondisi & event untuk Step 4 Refinement
+		if frame_count == 10:
+			_save_viewport_screenshot("step4_neutral.png")
+
+		# 1. Jump di lintasan lurus (Jarak ~15m)
+		if player and player.total_distance >= 15.0 and player.total_distance < 20.0 and player.move_state == PlayerController.MoveState.NORMAL and not has_captured_apex:
+			Input.action_press("jump")
+
+		if player and player.move_state == PlayerController.MoveState.JUMPING and not has_captured_apex:
+			Input.action_release("jump")
+			# Tangkap saat di ketinggian apex (1.6 - 1.8m)
+			if player.jump_height >= 1.60:
+				has_captured_apex = true
+				_save_viewport_screenshot("step4_jump_peak.png")
+
+		if player and has_captured_apex and not has_captured_landing and player.move_state == PlayerController.MoveState.NORMAL:
+			has_captured_landing = true
+			_save_viewport_screenshot("step4_landing.png")
+
+		# 2. Low Side-Skid Slide Netral (Jarak ~60m)
+		if player and player.total_distance >= 60.0 and player.total_distance < 70.0 and player.move_state == PlayerController.MoveState.NORMAL and not has_captured_slide_neutral:
+			Input.action_press("slide")
+
+		if player and player.move_state == PlayerController.MoveState.SLIDING and not has_captured_slide_neutral:
+			Input.action_release("slide")
+			if player.slide_posture_t >= 0.85:
+				has_captured_slide_neutral = true
+				_save_viewport_screenshot("step4_slide_active.png")
+
+		# 3. Low Side-Skid Slide Belok Kiri (Jarak ~100m)
+		if player and player.total_distance >= 100.0 and player.total_distance < 110.0 and player.move_state == PlayerController.MoveState.NORMAL and not has_captured_slide_skid:
+			Input.action_press("slide")
+			Input.action_press("move_left")
+
+		if player and player.move_state == PlayerController.MoveState.SLIDING and has_captured_slide_neutral and not has_captured_slide_skid:
+			Input.action_release("slide")
+			if player.slide_posture_t >= 0.85 and player.lateral_velocity < -1.5:
+				has_captured_slide_skid = true
+				_save_viewport_screenshot("step4_slide_skid_left.png")
+
+		if player and has_captured_slide_skid and player.total_distance >= 125.0 and player.total_distance < 130.0:
+			Input.action_release("move_left")
+
+		# 4. Jump di Ramp (Jarak ~145m - Segmen 8 RAMP)
+		if player and player.total_distance >= 142.0 and player.total_distance < 147.0 and player.move_state == PlayerController.MoveState.NORMAL:
+			Input.action_press("jump")
+
+		if player and player.total_distance >= 147.0 and player.move_state == PlayerController.MoveState.JUMPING:
+			Input.action_release("jump")
+			if player.jump_height >= 1.2:
+				_save_viewport_screenshot("step4_jump_ramp.png")
+
+		# 5. Finish di ujung lintasan (Jarak 291.9m)
+		if player and player.is_track_completed and not has_captured_finish:
+			has_captured_finish = true
+			_save_viewport_screenshot("step4_finish.png")
+			print("🏁 Step 4: Player selesai menempuh seluruh lintasan.")
+
+		if has_captured_finish and frame_count > 450:
+			print("📸 Audit Step 4 selesai penuh. Menutup.")
+			get_tree().quit()
+			has_captured_finish = true
+			_save_viewport_screenshot("step4_finish.png")
+			print("🏁 Step 4: Player selesai menempuh seluruh lintasan.")
+
+		if has_captured_finish and frame_count > 500:
+			print("📸 Audit Step 4 selesai penuh. Menutup.")
+			get_tree().quit()
 
 
 ## Menyimpan gambar tampilan viewport ke file PNG
@@ -100,7 +295,6 @@ func _save_viewport_screenshot(filename: String) -> void:
 
 ## Membangun lingkungan dasar (langit, cahaya, terrain)
 func _build_environment() -> void:
-	# WorldEnvironment
 	var world_env: WorldEnvironment = WorldEnvironment.new()
 	world_env.name = "WorldEnvironment"
 
@@ -123,7 +317,6 @@ func _build_environment() -> void:
 	world_env.environment = env
 	add_child(world_env)
 
-	# DirectionalLight3D (matahari)
 	var sun: DirectionalLight3D = DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.transform = Transform3D(
@@ -133,7 +326,6 @@ func _build_environment() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
-	# Terrain dasar (rumput hijau) — cukup besar untuk seluruh lintasan
 	var terrain: MeshInstance3D = MeshInstance3D.new()
 	terrain.name = "TerrainGround"
 	var plane: PlaneMesh = PlaneMesh.new()
@@ -150,34 +342,11 @@ func _build_environment() -> void:
 ## Membangun lintasan dari urutan segmen pengujian
 func _build_track() -> void:
 	track_manager.build_from_sequence(test_sequence)
-	# Jalankan diagnostik koneksi dan cetak ke konsol
 	track_manager.print_connection_diagnostics()
 	track_manager.print_path_diagnostics()
 
 
-## Menyiapkan test rig di posisi awal pada lintasan
-func _setup_test_rig() -> void:
-	test_rig.track_manager = track_manager
-	test_rig.total_distance = 0.0
-	test_rig._update_transform_on_track(0.0)
-
-
-## Menyiapkan chase camera dan top-view camera
-func _setup_camera() -> void:
-	chase_camera.target = test_rig
-	chase_camera._snap_to_target()
-
-	# Kamera pandangan atas (Top-View / Bird's Eye) untuk audit geometri lintasan
-	top_camera = Camera3D.new()
-	top_camera.name = "TopCamera"
-	top_camera.current = false
-	top_camera.fov = 75.0
-	top_camera.position = Vector3(-20.0, 175.0, -135.0)
-	top_camera.rotation_degrees = Vector3(-89.9, 0.0, 0.0)
-	add_child(top_camera)
-
-
-## Membangun UI overlay diagnostik (landscape-friendly)
+## Membangun UI overlay diagnostik
 func _build_ui_overlay() -> void:
 	var canvas: CanvasLayer = CanvasLayer.new()
 	canvas.name = "UIOverlay"
@@ -191,25 +360,23 @@ func _build_ui_overlay() -> void:
 	margin.add_theme_constant_override("margin_bottom", 12)
 	canvas.add_child(margin)
 
-	# Layout: informasi di kiri atas, ringkasan di kanan atas
 	var hbox: HBoxContainer = HBoxContainer.new()
 	hbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	margin.add_child(hbox)
 
-	# Panel kiri: info lintasan & kamera
 	var left_panel: PanelContainer = PanelContainer.new()
 	left_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	left_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var left_style: StyleBoxFlat = StyleBoxFlat.new()
-	left_style.bg_color = Color(0.08, 0.10, 0.16, 0.85)
+	left_style.bg_color = Color(0.08, 0.10, 0.16, 0.88)
 	left_style.corner_radius_top_left = 10
 	left_style.corner_radius_top_right = 10
 	left_style.corner_radius_bottom_left = 10
 	left_style.corner_radius_bottom_right = 10
-	left_style.content_margin_left = 12
-	left_style.content_margin_top = 8
-	left_style.content_margin_right = 12
-	left_style.content_margin_bottom = 8
+	left_style.content_margin_left = 14
+	left_style.content_margin_top = 10
+	left_style.content_margin_right = 14
+	left_style.content_margin_bottom = 10
 	left_panel.add_theme_stylebox_override("panel", left_style)
 	hbox.add_child(left_panel)
 
@@ -217,12 +384,7 @@ func _build_ui_overlay() -> void:
 	vbox.add_theme_constant_override("separation", 3)
 	left_panel.add_child(vbox)
 
-	# Judul
-	var title: Label = Label.new()
-	title.text = "🛣️ FASE 2: Track System Test"
-	title.add_theme_font_size_override("font_size", 15)
-	title.add_theme_color_override("font_color", Color(1.0, 0.82, 0.35))
-	vbox.add_child(title)
+	title_label_setup(vbox)
 
 	lbl_track_info = Label.new()
 	lbl_track_info.add_theme_font_size_override("font_size", 11)
@@ -253,38 +415,37 @@ func _build_ui_overlay() -> void:
 	lbl_connection_status.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(lbl_connection_status)
 
-	# Label status input real-time
 	lbl_input_status = Label.new()
 	lbl_input_status.add_theme_font_size_override("font_size", 11)
 	lbl_input_status.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
 	vbox.add_child(lbl_input_status)
 
-	# Hint kontrol lengkap (Keyboard & Touch)
 	var hint_kb: Label = Label.new()
-	hint_kb.text = "🎮 Keyboard: A/D (Lajur) | Space/W (Jump) | S/Down (Slide) | V (Kamera) | F11 (Screenshot) | Esc (Keluar)"
+	hint_kb.text = "🎮 Keyboard: A/D (Lateral) | Space/W (Jump) | S (Slide) | R (Reset) | V (Kamera) | F11 (Screenshot) | Esc (Keluar)"
 	hint_kb.add_theme_font_size_override("font_size", 10)
 	hint_kb.add_theme_color_override("font_color", Color(0.75, 0.82, 0.9))
 	vbox.add_child(hint_kb)
 
-	var hint_touch: Label = Label.new()
-	hint_touch.text = "📱 Touch: Swipe Kiri/Kanan (Lajur) | Swipe Atas (Jump) | Swipe Bawah (Slide)"
-	hint_touch.add_theme_font_size_override("font_size", 10)
-	hint_touch.add_theme_color_override("font_color", Color(0.7, 0.85, 0.75))
-	vbox.add_child(hint_touch)
-
 	var hint_note: Label = Label.new()
-	hint_note.text = "ℹ️ Fisika & animasi lompat/meluncur kendaraan diimplementasikan pada Fase 3."
+	hint_note.text = "📱 Touch: Swipe Kiri/Kanan (Lajur) | Swipe Atas (Jump) | Swipe Bawah (Slide)"
 	hint_note.add_theme_font_size_override("font_size", 9)
 	hint_note.add_theme_color_override("font_color", Color(0.55, 0.55, 0.6))
 	vbox.add_child(hint_note)
 
-	# Spacer untuk mendorong panel kiri ke atas
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_child(spacer)
 
 
-## Memasang TouchController di layer UI dan menghubungkan sinyal
+func title_label_setup(vbox: VBoxContainer) -> void:
+	lbl_title = Label.new()
+	lbl_title.text = "🏍️ FASE 3 — STEP 4: Jump & Low Side-Skid Slide"
+	lbl_title.add_theme_font_size_override("font_size", 15)
+	lbl_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	vbox.add_child(lbl_title)
+
+
+## Memasang TouchController di layer UI
 func _setup_touch_controller() -> void:
 	touch_controller = TouchController.new()
 	var canvas: CanvasLayer = get_node_or_null("UIOverlay")
@@ -295,7 +456,7 @@ func _setup_touch_controller() -> void:
 		touch_controller.tap_detected.connect(_on_touch_tap)
 
 
-## Memantau aksi input gameplay (Keyboard & Touch Actions)
+## Memantau aksi input gameplay
 func _monitor_gameplay_actions(delta: float) -> void:
 	if action_indicator_timer > 0.0:
 		action_indicator_timer = maxf(0.0, action_indicator_timer - delta)
@@ -306,20 +467,21 @@ func _monitor_gameplay_actions(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_V) and view_toggle_cooldown <= 0.0:
 		view_toggle_cooldown = 0.3
 		toggle_camera_view()
-	elif Input.is_action_just_pressed("jump"):
-		_register_action("⬆️ JUMP (Lompat)", Color(1.0, 0.85, 0.2))
-	elif Input.is_action_just_pressed("slide"):
-		_register_action("⬇️ SLIDE (Meluncur)", Color(0.3, 0.9, 1.0))
-	elif Input.is_action_just_pressed("move_left"):
-		_register_action("⬅️ MOVE_LEFT (Kiri)", Color(0.5, 1.0, 0.5))
-	elif Input.is_action_just_pressed("move_right"):
-		_register_action("➡️ MOVE_RIGHT (Kanan)", Color(0.5, 1.0, 0.5))
-	elif Input.is_action_just_pressed("pause"):
-		_register_action("⏸️ PAUSE / ESCAPE (Keluar)", Color(1.0, 0.4, 0.4))
+	elif Input.is_physical_key_pressed(KEY_F10) and view_toggle_cooldown <= 0.0:
+		view_toggle_cooldown = 0.3
+		_toggle_active_actor()
+	elif Input.is_physical_key_pressed(KEY_R) and view_toggle_cooldown <= 0.0:
+		view_toggle_cooldown = 0.3
+		if player:
+			player.reset_to_start()
+		if test_rig:
+			test_rig.total_distance = 0.0
+		_register_action("🔄 RESET KE AWAL LINTASAN", Color(1.0, 0.9, 0.3))
+	elif Input.is_action_just_pressed("pause") or Input.is_physical_key_pressed(KEY_ESCAPE):
 		get_tree().quit()
 
 
-## Beralih antara ChaseCamera (Third-Person) dan TopCamera (Overhead)
+## Beralih antara ChaseCamera dan TopCamera
 func toggle_camera_view() -> void:
 	is_top_view = !is_top_view
 	if is_top_view:
@@ -330,32 +492,47 @@ func toggle_camera_view() -> void:
 		_register_action("📷 KAMERA: CHASE CAMERA AKTIF (Third-Person)", Color(0.4, 1.0, 0.6))
 
 
-## Menangani callback gestur swipe dari TouchController
 func _on_touch_swipe(_dir: Vector2, action_name: String) -> void:
 	match action_name:
-		"jump":
-			_register_action("👆 SWIPE ATAS → JUMP (Lompat)", Color(1.0, 0.85, 0.2))
-		"slide":
-			_register_action("👆 SWIPE BAWAH → SLIDE (Meluncur)", Color(0.3, 0.9, 1.0))
 		"move_left":
-			_register_action("👆 SWIPE KIRI → MOVE_LEFT (Kiri)", Color(0.5, 1.0, 0.5))
+			if player:
+				player.apply_lateral_impulse(-1.0)
+			_register_action("👆 SWIPE KIRI → Manuver Kiri", Color(0.4, 0.9, 1.0))
 		"move_right":
-			_register_action("👆 SWIPE KANAN → MOVE_RIGHT (Kanan)", Color(0.5, 1.0, 0.5))
+			if player:
+				player.apply_lateral_impulse(1.0)
+			_register_action("👆 SWIPE KANAN → Manuver Kanan", Color(0.4, 0.9, 1.0))
+		"jump":
+			if player:
+				pass  # Input sudah dikirim oleh TouchController via Input.action_press
+			_register_action("👆 SWIPE ATAS → LOMPAT! 🦘", Color(1.0, 0.85, 0.2))
+		"slide":
+			if player:
+				pass  # Input sudah dikirim oleh TouchController via Input.action_press
+			_register_action("👆 SWIPE BAWAH → SLIDE! 🏂", Color(0.3, 0.9, 1.0))
 		_:
 			_register_action("👆 SWIPE: " + action_name.to_upper(), Color(0.8, 0.8, 0.9))
 
 
-## Menangani callback ketukan layar dari TouchController
 func _on_touch_tap(_pos: Vector2, action_name: String) -> void:
-	_register_action("👆 TAP: " + action_name.to_upper(), Color(0.8, 0.8, 0.9))
+	match action_name:
+		"move_left":
+			if player:
+				player.apply_lateral_impulse(-0.8)
+			_register_action("👆 TAP KIRI → Manuver Kiri", Color(0.4, 0.9, 1.0))
+		"move_right":
+			if player:
+				player.apply_lateral_impulse(0.8)
+			_register_action("👆 TAP KANAN → Manuver Kanan", Color(0.4, 0.9, 1.0))
+		_:
+			_register_action("👆 TAP: " + action_name.to_upper(), Color(0.8, 0.8, 0.9))
 
 
-## Mendaftarkan aksi yang terdeteksi dan memicu indikator visual sementara
 func _register_action(action_str: String, col: Color) -> void:
 	last_action_text = action_str
 	action_indicator_timer = 1.5
 	if lbl_input_status:
-		lbl_input_status.text = "⚡ Input Terdeteksi: " + last_action_text
+		lbl_input_status.text = "⚡ " + last_action_text
 		lbl_input_status.add_theme_color_override("font_color", col)
 
 
@@ -364,7 +541,6 @@ func _update_diagnostics() -> void:
 	if lbl_track_info == null:
 		return
 
-	# Info lintasan
 	var seg_count: int = track_manager.get_segment_count()
 	var total_len: float = track_manager.get_total_length()
 	lbl_track_info.text = (
@@ -372,7 +548,6 @@ func _update_diagnostics() -> void:
 		+" | Total: " + str(snappedf(total_len, 0.1)) + "m"
 	)
 
-	# Info kamera
 	var active_cam: Camera3D = top_camera if (top_camera and top_camera.current) else chase_camera
 	var cam_pos: Vector3 = active_cam.global_position
 	var cam_mode_str: String = "TOP-VIEW" if (top_camera and top_camera.current) else "CHASE (3rd Person)"
@@ -383,35 +558,60 @@ func _update_diagnostics() -> void:
 		+" | FOV=" + str(snappedf(active_cam.fov, 0.1)) + "°"
 	)
 
-	# Info test rig (Path Following, Orientasi, dan Lajur)
-	var rig_pos: Vector3 = test_rig.global_position
-	var rig_fwd: Vector3 = - test_rig.global_basis.z.normalized()
-	var heading_yaw: float = rad_to_deg(atan2(rig_fwd.x, -rig_fwd.z))
-	var pitch_deg: float = rad_to_deg(asin(clampf(rig_fwd.y, -1.0, 1.0)))
-	var progress_pct: int = int((test_rig.total_distance / maxf(1.0, total_len)) * 100.0)
+	# Info aktor aktif
+	if use_player and player:
+		var p_pos: Vector3 = player.global_position
+		var p_fwd: Vector3 = - player.global_basis.z.normalized()
+		var yaw_deg: float = rad_to_deg(atan2(p_fwd.x, -p_fwd.z))
+		var pitch_deg: float = rad_to_deg(asin(clampf(p_fwd.y, -1.0, 1.0)))
+		var pct: int = int((player.total_distance / maxf(1.0, total_len)) * 100.0)
 
-	lbl_rig_info.text = (
-		"Rig: Pos=(" + str(snappedf(rig_pos.x, 0.1)) + ", " + str(snappedf(rig_pos.y, 0.1)) + ", " + str(snappedf(rig_pos.z, 0.1)) + ")"
-		+" | Yaw=" + str(snappedf(heading_yaw, 0.1)) + "° Pitch=" + str(snappedf(pitch_deg, 0.1)) + "°\n"
-		+"Lajur: " + test_rig.get_lane_name()
-		+" | Jarak: " + str(snappedf(test_rig.total_distance, 0.1)) + "/" + str(snappedf(total_len, 0.1)) + "m (" + str(progress_pct) + "%)"
-	)
+		var lat_off: float = player.get_lateral_offset()
+		var lat_vel: float = player.get_lateral_velocity()
+		var lean_deg: float = player.get_lean_angle_deg()
+		var move_state_str: String = player.get_move_state()
+		var jump_h: float = player.get_jump_height()
 
-	# Detail segmen aktif tempat test rig berada saat ini
-	var seg_info: Dictionary = test_rig.get_current_segment_info()
-	var current_seg_idx: int = seg_info.get("index", -1)
-	if current_seg_idx >= 0 and current_seg_idx < seg_count:
-		var current_seg: TrackSegment = track_manager.get_segment(current_seg_idx)
-		var seg_name: String = _get_segment_type_name(current_seg.segment_type) if current_seg else "?"
-		var local_d: float = seg_info.get("local_dist", 0.0)
-		var seg_len: float = seg_info.get("segment_length", 0.0)
-		lbl_segment_detail.text = (
-			"🛣️ Segmen Aktif: [" + str(current_seg_idx + 1) + "/" + str(seg_count) + "] "
-			+ seg_name.to_upper()
-			+" | Progres Segmen: " + str(snappedf(local_d, 0.1)) + "/" + str(snappedf(seg_len, 0.1)) + "m"
+		var lane_desc: String = "Tengah (0.0m)"
+		if lat_off < -2.2:
+			lane_desc = "Lajur Kiri"
+		elif lat_off < -0.6:
+			lane_desc = "Antara Tengah & Kiri"
+		elif lat_off > 2.2:
+			lane_desc = "Lajur Kanan"
+		elif lat_off > 0.6:
+			lane_desc = "Antara Tengah & Kanan"
+
+		lbl_rig_info.text = (
+			"Aktor: PlayerController (Sepeda Motor + Ponco)\n"
+			+ "Pos=(" + str(snappedf(p_pos.x, 0.1)) + ", " + str(snappedf(p_pos.y, 0.1)) + ", " + str(snappedf(p_pos.z, 0.1)) + ")"
+			+ " | Yaw=" + str(snappedf(yaw_deg, 0.1)) + "° Pitch=" + str(snappedf(pitch_deg, 0.1)) + "°\n"
+			+ "Posisi: " + lane_desc + " (Offset: " + str(snappedf(lat_off, 0.01)) + "m) | Kecepatan Lat: " + str(snappedf(lat_vel, 0.1)) + "m/s\n"
+			+ "Kemiringan: " + str(snappedf(lean_deg, 0.1)) + "° | Status: " + move_state_str + " | Tinggi: " + str(snappedf(jump_h, 0.01)) + "m\n"
+			+ "Jarak: " + str(snappedf(player.total_distance, 0.1)) + "/" + str(snappedf(total_len, 0.1)) + "m (" + str(pct) + "%)"
 		)
-	else:
-		lbl_segment_detail.text = "🛣️ Segmen Aktif: Menunggu data lintasan..."
+		lbl_rig_info.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
+
+		var seg_info: Dictionary = player.get_current_segment_info()
+		_display_segment_detail(seg_info, seg_count)
+	elif test_rig:
+		var rig_pos: Vector3 = test_rig.global_position
+		var rig_fwd: Vector3 = - test_rig.global_basis.z.normalized()
+		var heading_yaw: float = rad_to_deg(atan2(rig_fwd.x, -rig_fwd.z))
+		var pitch_deg: float = rad_to_deg(asin(clampf(rig_fwd.y, -1.0, 1.0)))
+		var progress_pct: int = int((test_rig.total_distance / maxf(1.0, total_len)) * 100.0)
+
+		lbl_rig_info.text = (
+			"Aktor: TrackTestRig (Kotak Oranye - Diagnostik)\n"
+			+ "Pos=(" + str(snappedf(rig_pos.x, 0.1)) + ", " + str(snappedf(rig_pos.y, 0.1)) + ", " + str(snappedf(rig_pos.z, 0.1)) + ")"
+			+ " | Yaw=" + str(snappedf(heading_yaw, 0.1)) + "° Pitch=" + str(snappedf(pitch_deg, 0.1)) + "°\n"
+			+ "Lajur: " + test_rig.get_lane_name()
+			+ " | Jarak: " + str(snappedf(test_rig.total_distance, 0.1)) + "/" + str(snappedf(total_len, 0.1)) + "m (" + str(progress_pct) + "%)"
+		)
+		lbl_rig_info.add_theme_color_override("font_color", Color(1.0, 0.65, 0.2))
+
+		var seg_info: Dictionary = test_rig.get_current_segment_info()
+		_display_segment_detail(seg_info, seg_count)
 
 	# Diagnostik koneksi
 	if lbl_connection_status:
@@ -435,17 +635,23 @@ func _update_diagnostics() -> void:
 			)
 			lbl_connection_status.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 
-	# Status input terakhir
-	if lbl_input_status and action_indicator_timer <= 0.0:
-		if last_action_text == "Belum ada input":
-			lbl_input_status.text = "🎮 Input: Menunggu aksi (Space/W/S/A/D/Swipe)..."
-			lbl_input_status.add_theme_color_override("font_color", Color(0.65, 0.65, 0.7))
-		else:
-			lbl_input_status.text = "🎮 Input Terakhir: " + last_action_text
-			lbl_input_status.add_theme_color_override("font_color", Color(0.7, 0.75, 0.8))
+
+func _display_segment_detail(seg_info: Dictionary, seg_count: int) -> void:
+	var current_seg_idx: int = seg_info.get("index", -1)
+	if current_seg_idx >= 0 and current_seg_idx < seg_count:
+		var current_seg: TrackSegment = track_manager.get_segment(current_seg_idx)
+		var seg_name: String = _get_segment_type_name(current_seg.segment_type) if current_seg else "?"
+		var local_d: float = seg_info.get("local_dist", 0.0)
+		var seg_len: float = seg_info.get("segment_length", 0.0)
+		lbl_segment_detail.text = (
+			"🛣️ Segmen Aktif: [" + str(current_seg_idx + 1) + "/" + str(seg_count) + "] "
+			+ seg_name.to_upper()
+			+" | Progres Segmen: " + str(snappedf(local_d, 0.1)) + "/" + str(snappedf(seg_len, 0.1)) + "m"
+		)
+	else:
+		lbl_segment_detail.text = "🛣️ Segmen Aktif: Menunggu data lintasan..."
 
 
-## Mendapatkan nama tipe segmen untuk tampilan
 func _get_segment_type_name(seg_type: TrackSegment.SegmentType) -> String:
 	match seg_type:
 		TrackSegment.SegmentType.STRAIGHT: return "Lurus"

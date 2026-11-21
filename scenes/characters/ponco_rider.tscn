@@ -1,0 +1,139 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/characters/ponco_rider.gd" id="1_rider"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_Jacket"]
+albedo_color = Color(0.18, 0.58, 0.65, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Mat_Skin"]
+albedo_color = Color(0.92, 0.74, 0.6, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="Mat_Cap"]
+albedo_color = Color(0.92, 0.68, 0.15, 1)
+roughness = 0.6
+
+[sub_resource type="StandardMaterial3D" id="Mat_Goggles"]
+albedo_color = Color(0.18, 0.2, 0.25, 1)
+metallic = 0.5
+roughness = 0.3
+
+[sub_resource type="StandardMaterial3D" id="Mat_Pants"]
+albedo_color = Color(0.22, 0.32, 0.48, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Mat_Boots"]
+albedo_color = Color(0.32, 0.22, 0.16, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Mat_Gloves"]
+albedo_color = Color(0.4, 0.28, 0.2, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_pelvis"]
+material = SubResource("Mat_Pants")
+size = Vector3(0.32, 0.16, 0.24)
+
+[sub_resource type="BoxMesh" id="BoxMesh_torso"]
+material = SubResource("Mat_Jacket")
+size = Vector3(0.34, 0.38, 0.24)
+
+[sub_resource type="SphereMesh" id="SphereMesh_head"]
+material = SubResource("Mat_Skin")
+radius = 0.13
+height = 0.26
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_cap"]
+material = SubResource("Mat_Cap")
+top_radius = 0.135
+bottom_radius = 0.14
+height = 0.08
+
+[sub_resource type="BoxMesh" id="BoxMesh_brim"]
+material = SubResource("Mat_Cap")
+size = Vector3(0.16, 0.02, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_goggles"]
+material = SubResource("Mat_Goggles")
+size = Vector3(0.2, 0.04, 0.04)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_arm"]
+material = SubResource("Mat_Jacket")
+radius = 0.05
+height = 0.44
+
+[sub_resource type="SphereMesh" id="SphereMesh_hand"]
+material = SubResource("Mat_Gloves")
+radius = 0.055
+height = 0.11
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_leg"]
+material = SubResource("Mat_Pants")
+radius = 0.065
+height = 0.36
+
+[sub_resource type="BoxMesh" id="BoxMesh_boot"]
+material = SubResource("Mat_Boots")
+size = Vector3(0.1, 0.1, 0.16)
+
+[node name="PoncoRider" type="Node3D"]
+script = ExtResource("1_rider")
+
+[node name="VisualPivot" type="Node3D" parent="."]
+
+[node name="Pelvis" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+mesh = SubResource("BoxMesh_pelvis")
+
+[node name="Torso" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 0.32, -0.06)
+mesh = SubResource("BoxMesh_torso")
+
+[node name="Head" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.58, -0.12)
+mesh = SubResource("SphereMesh_head")
+
+[node name="Cap" type="MeshInstance3D" parent="VisualPivot/Head"]
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, 0, 0.09, 0)
+mesh = SubResource("CylinderMesh_cap")
+
+[node name="Brim" type="MeshInstance3D" parent="VisualPivot/Head/Cap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, -0.11)
+mesh = SubResource("BoxMesh_brim")
+
+[node name="Goggles" type="MeshInstance3D" parent="VisualPivot/Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, -0.12)
+mesh = SubResource("BoxMesh_goggles")
+
+[node name="LeftArm" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(0.965926, 0, -0.258819, -0.245229, 0.316205, -0.915206, 0.0818395, 0.948692, 0.30543, -0.22, 0.42, -0.28)
+mesh = SubResource("CapsuleMesh_arm")
+
+[node name="LeftHand" type="MeshInstance3D" parent="VisualPivot/LeftArm"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.24, 0)
+mesh = SubResource("SphereMesh_hand")
+
+[node name="RightArm" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(0.965926, 0, 0.258819, 0.245229, 0.316205, 0.915206, -0.0818395, 0.948692, 0.30543, 0.22, 0.42, -0.28)
+mesh = SubResource("CapsuleMesh_arm")
+
+[node name="RightHand" type="MeshInstance3D" parent="VisualPivot/RightArm"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.24, 0)
+mesh = SubResource("SphereMesh_hand")
+
+[node name="LeftLeg" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(0.984808, 0, 0.173648, 0.0301537, 0.984808, -0.17101, -0.17101, 0.173648, 0.969846, -0.18, -0.08, -0.04)
+mesh = SubResource("CapsuleMesh_leg")
+
+[node name="LeftBoot" type="MeshInstance3D" parent="VisualPivot/LeftLeg"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.18, -0.04)
+mesh = SubResource("BoxMesh_boot")
+
+[node name="RightLeg" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(0.984808, 0, -0.173648, -0.0301537, 0.984808, -0.17101, 0.17101, 0.173648, 0.969846, 0.18, -0.08, -0.04)
+mesh = SubResource("CapsuleMesh_leg")
+
+[node name="RightBoot" type="MeshInstance3D" parent="VisualPivot/RightLeg"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.18, -0.04)
+mesh = SubResource("BoxMesh_boot")

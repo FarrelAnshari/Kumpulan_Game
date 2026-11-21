@@ -1,0 +1,103 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player_preview.gd" id="1_prev"]
+[ext_resource type="PackedScene" path="res://scenes/player/player_controller.tscn" id="2_player"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_preview"]
+sky_top_color = Color(0.35, 0.55, 0.85, 1)
+sky_horizon_color = Color(0.95, 0.75, 0.55, 1)
+ground_bottom_color = Color(0.2, 0.15, 0.1, 1)
+ground_horizon_color = Color(0.85, 0.65, 0.45, 1)
+
+[sub_resource type="Sky" id="Sky_prev"]
+sky_material = SubResource("ProceduralSkyMaterial_preview")
+
+[sub_resource type="Environment" id="Environment_preview"]
+background_mode = 2
+sky = SubResource("Sky_prev")
+ambient_light_source = 3
+ambient_light_color = Color(0.65, 0.65, 0.7, 1)
+tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Mat_Ground"]
+albedo_color = Color(0.38, 0.58, 0.32, 1)
+roughness = 0.9
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+material = SubResource("Mat_Ground")
+size = Vector2(40, 40)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Asphalt"]
+albedo_color = Color(0.22, 0.22, 0.25, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="BoxMesh_asphalt"]
+material = SubResource("Mat_Asphalt")
+size = Vector3(10.5, 0.18, 16)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Shoulder"]
+albedo_color = Color(0.45, 0.38, 0.35, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="BoxMesh_shoulder"]
+material = SubResource("Mat_Shoulder")
+size = Vector3(1.5, 0.15, 16)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Line"]
+albedo_color = Color(0.95, 0.95, 0.95, 1)
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_line"]
+material = SubResource("Mat_Line")
+size = Vector3(0.18, 0.2, 16)
+
+[node name="PlayerPreview" type="Node3D"]
+script = ExtResource("1_prev")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_preview")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 10, 0)
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.707107, -0.241845, 0.664463, 0, 0.939693, 0.34202, -0.707107, -0.241845, 0.664463, 2.6, 1.8, -2.4)
+keep_aspect = 0
+fov = 55.0
+
+[node name="Terrain" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+mesh = SubResource("PlaneMesh_ground")
+
+[node name="TrackSample" type="Node3D" parent="."]
+
+[node name="Asphalt" type="MeshInstance3D" parent="TrackSample"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.09, 0)
+mesh = SubResource("BoxMesh_asphalt")
+
+[node name="LeftShoulder" type="MeshInstance3D" parent="TrackSample"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, -0.09, 0)
+mesh = SubResource("BoxMesh_shoulder")
+
+[node name="RightShoulder" type="MeshInstance3D" parent="TrackSample"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.09, 0)
+mesh = SubResource("BoxMesh_shoulder")
+
+[node name="LeftBorder" type="MeshInstance3D" parent="TrackSample"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.25, -0.08, 0)
+mesh = SubResource("BoxMesh_line")
+
+[node name="RightBorder" type="MeshInstance3D" parent="TrackSample"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.25, -0.08, 0)
+mesh = SubResource("BoxMesh_line")
+
+[node name="DividerLeft" type="MeshInstance3D" parent="TrackSample"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.75, -0.08, 0)
+mesh = SubResource("BoxMesh_line")
+
+[node name="DividerRight" type="MeshInstance3D" parent="TrackSample"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, -0.08, 0)
+mesh = SubResource("BoxMesh_line")
+
+[node name="PlayerController" parent="." instance=ExtResource("2_player")]

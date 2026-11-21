@@ -1,0 +1,175 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/vehicles/motorcycle_basic.gd" id="1_moto"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_Body"]
+albedo_color = Color(0.15, 0.45, 0.85, 1)
+metallic = 0.4
+roughness = 0.3
+
+[sub_resource type="StandardMaterial3D" id="Mat_Tire"]
+albedo_color = Color(0.12, 0.12, 0.14, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Mat_Rim"]
+albedo_color = Color(0.75, 0.75, 0.78, 1)
+metallic = 0.8
+roughness = 0.25
+
+[sub_resource type="StandardMaterial3D" id="Mat_Engine"]
+albedo_color = Color(0.22, 0.24, 0.28, 1)
+metallic = 0.7
+roughness = 0.4
+
+[sub_resource type="StandardMaterial3D" id="Mat_Seat"]
+albedo_color = Color(0.18, 0.18, 0.2, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Mat_Chrome"]
+albedo_color = Color(0.85, 0.85, 0.9, 1)
+metallic = 0.9
+roughness = 0.15
+
+[sub_resource type="StandardMaterial3D" id="Mat_Headlight"]
+albedo_color = Color(1, 0.95, 0.7, 1)
+emission_enabled = true
+emission = Color(1, 0.95, 0.7, 1)
+emission_energy_multiplier = 1.5
+
+[sub_resource type="StandardMaterial3D" id="Mat_Taillight"]
+albedo_color = Color(0.95, 0.15, 0.15, 1)
+emission_enabled = true
+emission = Color(0.95, 0.15, 0.15, 1)
+emission_energy_multiplier = 1.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_tire"]
+material = SubResource("Mat_Tire")
+top_radius = 0.28
+bottom_radius = 0.28
+height = 0.12
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_rim"]
+material = SubResource("Mat_Rim")
+top_radius = 0.18
+bottom_radius = 0.18
+height = 0.13
+
+[sub_resource type="BoxMesh" id="BoxMesh_frame"]
+material = SubResource("Mat_Engine")
+size = Vector3(0.3, 0.35, 0.9)
+
+[sub_resource type="BoxMesh" id="BoxMesh_tank"]
+material = SubResource("Mat_Body")
+size = Vector3(0.36, 0.26, 0.45)
+
+[sub_resource type="BoxMesh" id="BoxMesh_seat"]
+material = SubResource("Mat_Seat")
+size = Vector3(0.32, 0.12, 0.42)
+
+[sub_resource type="BoxMesh" id="BoxMesh_tail"]
+material = SubResource("Mat_Body")
+size = Vector3(0.26, 0.18, 0.35)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_fork"]
+material = SubResource("Mat_Chrome")
+top_radius = 0.025
+bottom_radius = 0.025
+height = 0.7
+
+[sub_resource type="BoxMesh" id="BoxMesh_handlebar"]
+material = SubResource("Mat_Chrome")
+size = Vector3(0.68, 0.04, 0.04)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_headlight"]
+material = SubResource("Mat_Headlight")
+top_radius = 0.09
+bottom_radius = 0.09
+height = 0.06
+
+[sub_resource type="BoxMesh" id="BoxMesh_taillight"]
+material = SubResource("Mat_Taillight")
+size = Vector3(0.14, 0.06, 0.04)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_exhaust"]
+material = SubResource("Mat_Chrome")
+top_radius = 0.045
+bottom_radius = 0.045
+height = 0.65
+
+[sub_resource type="BoxMesh" id="BoxMesh_footrest"]
+material = SubResource("Mat_Rim")
+size = Vector3(0.56, 0.04, 0.06)
+
+[node name="MotorcycleBasic" type="Node3D"]
+script = ExtResource("1_moto")
+
+[node name="VisualPivot" type="Node3D" parent="."]
+
+[node name="FrontWheel" type="Node3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, -0.7)
+
+[node name="TireMesh" type="MeshInstance3D" parent="VisualPivot/FrontWheel"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_tire")
+
+[node name="RimMesh" type="MeshInstance3D" parent="VisualPivot/FrontWheel"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_rim")
+
+[node name="RearWheel" type="Node3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, 0.7)
+
+[node name="TireMesh" type="MeshInstance3D" parent="VisualPivot/RearWheel"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_tire")
+
+[node name="RimMesh" type="MeshInstance3D" parent="VisualPivot/RearWheel"]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_rim")
+
+[node name="FrameEngine" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.42, 0)
+mesh = SubResource("BoxMesh_frame")
+
+[node name="GasTank" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, 0, 0.65, -0.22)
+mesh = SubResource("BoxMesh_tank")
+
+[node name="Seat" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.996195, -0.0871557, 0, 0.0871557, 0.996195, 0, 0.58, 0.14)
+mesh = SubResource("BoxMesh_seat")
+
+[node name="Tail" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 0.64, 0.5)
+mesh = SubResource("BoxMesh_tail")
+
+[node name="LeftFork" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.906308, 0.422618, 0, -0.422618, 0.906308, -0.12, 0.52, -0.58)
+mesh = SubResource("CylinderMesh_fork")
+
+[node name="RightFork" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.906308, 0.422618, 0, -0.422618, 0.906308, 0.12, 0.52, -0.58)
+mesh = SubResource("CylinderMesh_fork")
+
+[node name="Handlebars" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.86, -0.42)
+mesh = SubResource("BoxMesh_handlebar")
+
+[node name="Headlight" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0.72, -0.84)
+mesh = SubResource("CylinderMesh_headlight")
+
+[node name="Taillight" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.66, 0.7)
+mesh = SubResource("BoxMesh_taillight")
+
+[node name="Exhaust" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.173648, -0.984808, 0, 0.984808, 0.173648, 0.2, 0.32, 0.35)
+mesh = SubResource("CylinderMesh_exhaust")
+
+[node name="Footrests" type="MeshInstance3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, 0.08)
+mesh = SubResource("BoxMesh_footrest")
+
+[node name="RiderMount" type="Node3D" parent="VisualPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.62, 0.14)

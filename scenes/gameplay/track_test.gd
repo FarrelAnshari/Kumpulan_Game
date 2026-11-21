@@ -24,6 +24,7 @@ var use_player: bool = true
 
 # Referensi kamera alternatif
 var top_camera: Camera3D
+var side_camera: Camera3D
 var is_top_view: bool = false
 var view_toggle_cooldown: float = 0.0
 
@@ -36,6 +37,8 @@ var has_captured_finish: bool = false
 var has_captured_apex: bool = false
 var has_captured_landing: bool = false
 var has_captured_slide_neutral: bool = false
+var has_captured_slide_side: bool = false
+var slide_side_capture_frame: int = 0
 var has_captured_slide_skid: bool = false
 
 # Data urutan segmen untuk pengujian (13 segmen modular Fase 2)
@@ -109,6 +112,13 @@ func _setup_camera() -> void:
 	top_camera.position = Vector3(-20.0, 175.0, -135.0)
 	top_camera.rotation_degrees = Vector3(-89.9, 0.0, 0.0)
 	add_child(top_camera)
+
+	# Kamera pandangan samping (Side-View Profile) untuk verifikasi visual slide & postur
+	side_camera = Camera3D.new()
+	side_camera.name = "SideCamera"
+	side_camera.current = false
+	side_camera.fov = 50.0
+	add_child(side_camera)
 
 
 ## Berganti aktor aktif antara PlayerController dan TrackTestRig (Fitur Diagnostik F2/F3)
@@ -221,10 +231,11 @@ func _handle_auto_screenshots() -> void:
 
 		if player and player.move_state == PlayerController.MoveState.JUMPING and not has_captured_apex:
 			Input.action_release("jump")
-			# Tangkap saat di ketinggian apex (1.6 - 1.8m)
-			if player.jump_height >= 1.60:
+			# Tangkap tepat ketika kecepatan vertikal melintasi 0 m/s (Puncak Apex tertinggi)
+			if player.jump_vertical_velocity <= 0.05 and player.jump_height >= 1.60:
 				has_captured_apex = true
 				_save_viewport_screenshot("step4_jump_peak.png")
+				print("📸 Jump Apex Captured: Height=%.2fm, Velocity=%.2fm/s" % [player.jump_height, player.jump_vertical_velocity])
 
 		if player and has_captured_apex and not has_captured_landing and player.move_state == PlayerController.MoveState.NORMAL:
 			has_captured_landing = true
@@ -236,9 +247,26 @@ func _handle_auto_screenshots() -> void:
 
 		if player and player.move_state == PlayerController.MoveState.SLIDING and not has_captured_slide_neutral:
 			Input.action_release("slide")
-			if player.slide_posture_t >= 0.85:
+			# Tunggu hingga postur slide penuh dan bank stabil (-18.5°)
+			if player.slide_posture_t >= 0.95 and player.slide_timer <= 0.65:
 				has_captured_slide_neutral = true
 				_save_viewport_screenshot("step4_slide_active.png")
+
+		# Tampak Samping (Side View Profile) saat Slide aktif penuh
+		if player and player.move_state == PlayerController.MoveState.SLIDING and has_captured_slide_neutral and not has_captured_slide_side:
+			if slide_side_capture_frame == 0 and side_camera:
+				# Tahap 1: Aktifkan side camera dan posisikan di sisi samping pemain
+				side_camera.global_position = player.global_position - player.global_basis.x * 3.5 + player.global_basis.y * 0.65 - player.global_basis.z * 0.2
+				side_camera.look_at(player.global_position + player.global_basis.y * 0.45, Vector3.UP)
+				side_camera.current = true
+				slide_side_capture_frame = frame_count + 1
+			elif slide_side_capture_frame > 0 and frame_count >= slide_side_capture_frame:
+				# Tahap 2: Viewport telah merender frame dari side_camera, simpan gambar
+				has_captured_slide_side = true
+				_save_viewport_screenshot("step4_slide_side_view.png")
+				# Kembalikan ke chase camera
+				chase_camera.current = true
+				print("📸 Slide Side View Profile Captured!")
 
 		# 3. Low Side-Skid Slide Belok Kiri (Jarak ~100m)
 		if player and player.total_distance >= 100.0 and player.total_distance < 110.0 and player.move_state == PlayerController.MoveState.NORMAL and not has_captured_slide_skid:
@@ -568,7 +596,8 @@ func _update_diagnostics() -> void:
 
 		var lat_off: float = player.get_lateral_offset()
 		var lat_vel: float = player.get_lateral_velocity()
-		var lean_deg: float = player.get_lean_angle_deg()
+		var steer_lean: float = player.get_lean_angle_deg()
+		var actual_bank: float = player.get_actual_bank_deg()
 		var move_state_str: String = player.get_move_state()
 		var jump_h: float = player.get_jump_height()
 
@@ -587,7 +616,7 @@ func _update_diagnostics() -> void:
 			+ "Pos=(" + str(snappedf(p_pos.x, 0.1)) + ", " + str(snappedf(p_pos.y, 0.1)) + ", " + str(snappedf(p_pos.z, 0.1)) + ")"
 			+ " | Yaw=" + str(snappedf(yaw_deg, 0.1)) + "° Pitch=" + str(snappedf(pitch_deg, 0.1)) + "°\n"
 			+ "Posisi: " + lane_desc + " (Offset: " + str(snappedf(lat_off, 0.01)) + "m) | Kecepatan Lat: " + str(snappedf(lat_vel, 0.1)) + "m/s\n"
-			+ "Kemiringan: " + str(snappedf(lean_deg, 0.1)) + "° | Status: " + move_state_str + " | Tinggi: " + str(snappedf(jump_h, 0.01)) + "m\n"
+			+ "Kemiringan: " + str(snappedf(actual_bank, 0.1)) + "° [VisualPivot] (Kemudi: " + str(snappedf(steer_lean, 0.1)) + "°) | Status: " + move_state_str + " | Tinggi: " + str(snappedf(jump_h, 0.01)) + "m\n"
 			+ "Jarak: " + str(snappedf(player.total_distance, 0.1)) + "/" + str(snappedf(total_len, 0.1)) + "m (" + str(pct) + "%)"
 		)
 		lbl_rig_info.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))

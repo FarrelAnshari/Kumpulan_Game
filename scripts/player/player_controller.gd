@@ -436,8 +436,15 @@ func get_lateral_velocity() -> float:
 	return lateral_velocity
 
 
-## Mendapatkan sudut kemiringan visual saat ini dalam derajat
+## Mendapatkan sudut kemiringan visual saat ini dalam derajat (steering lean)
 func get_lean_angle_deg() -> float:
+	return rad_to_deg(current_lean_angle)
+
+
+## Mendapatkan sudut roll/bank visual aktual dari VisualPivot kendaraan (derajat)
+func get_actual_bank_deg() -> float:
+	if motorcycle and motorcycle.has_method("get_actual_roll_deg"):
+		return motorcycle.get_actual_roll_deg()
 	return rad_to_deg(current_lean_angle)
 
 

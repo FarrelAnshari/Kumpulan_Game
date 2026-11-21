@@ -132,3 +132,17 @@ func _apply_chassis_compression(offset_y: float) -> void:
 		front_wheel.position.y = base_front_wheel_pos.y
 	if rear_wheel and base_rear_wheel_pos != Vector3.ZERO:
 		rear_wheel.position.y = base_rear_wheel_pos.y
+
+
+## Mendapatkan sudut roll aktual VisualPivot saat ini (derajat)
+func get_actual_roll_deg() -> float:
+	if visual_pivot:
+		return rad_to_deg(visual_pivot.rotation.z)
+	return 0.0
+
+
+## Mendapatkan sudut yaw aktual VisualPivot saat ini (derajat)
+func get_actual_yaw_deg() -> float:
+	if visual_pivot:
+		return rad_to_deg(visual_pivot.rotation.y)
+	return 0.0
